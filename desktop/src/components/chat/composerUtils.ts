@@ -79,13 +79,34 @@ export const FALLBACK_SLASH_COMMANDS: SlashCommandOption[] = [
   { name: 'vim', description: 'Toggle vim editing mode' },
 ]
 
-/** Build localized fallback commands using the current locale */
+/** Build localized fallback commands using the current locale.
+ *
+ * Resolution order for each command's description:
+ *   1. Localized string from the i18n table (zh -> en) when a key is registered.
+ *   2. The static English description shipped in FALLBACK_SLASH_COMMANDS.
+ *
+ * This guarantees we never render a raw key (e.g. "slashCmd.foo.description")
+ * in the UI even if a command is missing from SLASH_CMD_DESCRIPTION_KEYS or
+ * its translation entry is absent.
+ */
 export function getLocalizedFallbackCommands(t: (key: TranslationKey) => string): SlashCommandOption[] {
-  return FALLBACK_SLASH_COMMANDS.map((cmd) => ({
-    name: cmd.name,
-    description: t(SLASH_CMD_DESCRIPTION_KEYS[cmd.name] ?? ('slashCmd.' + cmd.name + '.description' as TranslationKey)),
-    ...(cmd.argumentHint && { argumentHint: cmd.argumentHint }),
-  }))
+  return FALLBACK_SLASH_COMMANDS.map((cmd) => {
+    const key = SLASH_CMD_DESCRIPTION_KEYS[cmd.name]
+    let description = cmd.description
+    if (key) {
+      const translated = t(key)
+      // i18n returns the key itself when no translation is found; fall back to
+      // the static English description in that case.
+      if (translated && translated !== key) {
+        description = translated
+      }
+    }
+    return {
+      name: cmd.name,
+      description,
+      ...(cmd.argumentHint && { argumentHint: cmd.argumentHint }),
+    }
+  })
 }
 
 export type SlashCommandOption = {

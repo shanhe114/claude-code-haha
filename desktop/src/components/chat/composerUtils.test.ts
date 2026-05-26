@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   filterSlashCommands,
   findSlashToken,
+  getLocalizedFallbackCommands,
   insertSlashTrigger,
   mergeSlashCommands,
   replaceSlashCommand,
@@ -142,5 +143,39 @@ describe('composerUtils', () => {
     expect(resolveSlashUiAction('cost')).toEqual({ type: 'panel', command: 'cost' })
     expect(resolveSlashUiAction('context')).toEqual({ type: 'panel', command: 'context' })
     expect(resolveSlashUiAction('status')).toEqual({ type: 'panel', command: 'status' })
+  })
+
+  it('falls back to the static English description when a translation key is missing', () => {
+    // Simulate an i18n t() function that returns the raw key for missing entries
+    // (this is what the real translate() does via zh[key] ?? en[key] ?? key).
+    const mockT = (key: string) => key
+
+    const commands = getLocalizedFallbackCommands(mockT)
+    const clearCmd = commands.find((c) => c.name === 'clear')
+    expect(clearCmd?.description).toBe('Clear conversation history')
+    expect(clearCmd?.description).not.toBe('slashCmd.clear.description')
+
+    // Verify every command renders a human-readable description, never a raw key
+    for (const cmd of commands) {
+      expect(cmd.description).not.toMatch(/^slashCmd\./)
+    }
+  })
+
+  it('uses the localized description when the translation key resolves to a real string', () => {
+    const mockT = (key: string) => {
+      const map: Record<string, string> = {
+        'slashCmd.clear.description': '清空会话历史',
+      }
+      return map[key] ?? key
+    }
+
+    const commands = getLocalizedFallbackCommands(mockT)
+    const clearCmd = commands.find((c) => c.name === 'clear')
+    expect(clearCmd?.description).toBe('清空会话历史')
+
+    // A command without a translated key should still fall back to English
+    const mcpCmd = commands.find((c) => c.name === 'mcp')
+    expect(mcpCmd?.description).toBe('Open available MCP tools for the current chat context')
+    expect(mcpCmd?.description).not.toBe('slashCmd.mcp.description')
   })
 })
