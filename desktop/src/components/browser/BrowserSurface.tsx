@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef } from 'react'
+import { Camera } from 'lucide-react'
 import { BrowserAddressBar } from './BrowserAddressBar'
 import { computeWebviewBounds } from './computeWebviewBounds'
 import { previewBridge } from '../../lib/previewBridge'
@@ -56,6 +57,15 @@ export function BrowserSurface({ sessionId }: { sessionId: string }) {
         onForward={() => { store.goForward(sessionId); previewBridge.navigate(useBrowserPanelStore.getState().bySession[sessionId]!.url) }}
         onReload={() => previewBridge.navigate(session.url)}
       />
+      <div className="flex items-center gap-1 border-b px-2 py-1">
+        <button
+          aria-label="截图"
+          className="rounded p-1 hover:bg-muted"
+          onClick={() => previewBridge.eval(`window.__PREVIEW_BRIDGE__?.handleHostRaw('{"v":1,"type":"capture","kind":"full"}')`)}
+        >
+          <Camera size={16} />
+        </button>
+      </div>
       <div ref={hostRef} className="flex-1" data-testid="preview-host" />
     </div>
   )

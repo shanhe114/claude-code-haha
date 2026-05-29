@@ -10,8 +10,10 @@ export function createBridge(deps: Deps) {
     reportNavigated: () => send({ type: 'navigated', url: deps.location.href, title: deps.title }),
     reportError: (message: string) => send({ type: 'error', message }),
     send,
-    on(type: HostMessage['type'], fn: (m: HostMessage) => void) {
-      const arr = handlers.get(type) ?? []; arr.push(fn); handlers.set(type, arr)
+    on<T extends HostMessage['type']>(type: T, fn: (m: Extract<HostMessage, { type: T }>) => void) {
+      const arr = handlers.get(type) ?? []
+      arr.push(fn as (m: HostMessage) => void)
+      handlers.set(type, arr)
     },
     handleHostRaw(raw: string) {
       const msg = parseHostMessage(raw)

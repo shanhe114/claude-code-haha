@@ -7,7 +7,7 @@ beforeAll(() => {
 })
 
 const { bridge } = vi.hoisted(() => ({
-  bridge: { open: vi.fn(), navigate: vi.fn(), setBounds: vi.fn(), setVisible: vi.fn(), close: vi.fn() },
+  bridge: { open: vi.fn(), navigate: vi.fn(), setBounds: vi.fn(), setVisible: vi.fn(), close: vi.fn(), eval: vi.fn() },
 }))
 vi.mock('../../lib/previewBridge', () => ({ previewBridge: bridge }))
 vi.mock('@tauri-apps/api/event', () => ({ listen: () => Promise.resolve(() => {}) }))
@@ -42,5 +42,12 @@ describe('BrowserSurface', () => {
     const { unmount } = render(<BrowserSurface sessionId="s1" />)
     unmount()
     expect(bridge.setVisible).toHaveBeenLastCalledWith(false)
+  })
+
+  it('截图 button triggers a capture via preview_eval', () => {
+    useBrowserPanelStore.getState().open('s1', 'http://localhost:5173/')
+    render(<BrowserSurface sessionId="s1" />)
+    fireEvent.click(screen.getByLabelText('截图'))
+    expect(bridge.eval).toHaveBeenCalledWith(expect.stringContaining('capture'))
   })
 })

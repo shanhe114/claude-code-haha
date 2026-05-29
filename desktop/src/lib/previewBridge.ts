@@ -13,4 +13,5 @@ export const previewBridge = {
   setBounds: (bounds: WebviewBounds) => call('preview_set_bounds', { bounds }),
   setVisible: (visible: boolean) => call('preview_set_visible', { visible }),
   close: () => call('preview_close'),
+  eval: (js: string) => call('preview_eval', { js }),
 }

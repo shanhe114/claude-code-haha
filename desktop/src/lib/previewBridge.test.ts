@@ -21,6 +21,12 @@ describe('previewBridge', () => {
     expect(invoke).toHaveBeenCalledWith('preview_set_bounds', { bounds: { x: 0, y: 0, width: 10, height: 10 } })
   })
 
+  it('eval forwards js to preview_eval', async () => {
+    const { previewBridge } = await import('./previewBridge')
+    await previewBridge.eval('window.x=1')
+    expect(invoke).toHaveBeenCalledWith('preview_eval', { js: 'window.x=1' })
+  })
+
   it('is a no-op outside the Tauri runtime', async () => {
     vi.resetModules()
     vi.doMock('./desktopRuntime', () => ({ isTauriRuntime: () => false }))
