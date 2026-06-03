@@ -12,6 +12,7 @@ import {
   proxyUrlFromElectronProxyRules,
   pushStartupLog,
   resolveHostTriple,
+  windowsPowerShellOverride,
   type SidecarChild,
 } from './sidecarManager'
 
@@ -147,5 +148,18 @@ describe('Electron sidecar manager', () => {
     killSidecar(child, true, { platform: 'win32', spawnAsync: spawnAsync as never, spawnSyncFn: spawnSyncFn as never })
     expect(spawnSyncFn).toHaveBeenCalledWith('taskkill', ['/F', '/T', '/PID', '777'], { stdio: 'ignore' })
     expect(spawnAsync).not.toHaveBeenCalled()
+  })
+
+  it('forwards a PowerShell shell choice to the sidecar only on Windows', () => {
+    expect(windowsPowerShellOverride('pwsh.exe', 'win32')).toBe('pwsh.exe')
+    expect(windowsPowerShellOverride('powershell.exe', 'win32')).toBe('powershell.exe')
+    expect(windowsPowerShellOverride('C:\\tools\\PowerShell\\pwsh.exe', 'win32')).toBe('C:\\tools\\PowerShell\\pwsh.exe')
+    // non-PowerShell selections must not be reported as a PowerShell override
+    expect(windowsPowerShellOverride('cmd.exe', 'win32')).toBeNull()
+    expect(windowsPowerShellOverride('C:\\bin\\bash.exe', 'win32')).toBeNull()
+    expect(windowsPowerShellOverride(null, 'win32')).toBeNull()
+    // never applies off Windows
+    expect(windowsPowerShellOverride('pwsh', 'darwin')).toBeNull()
+    expect(windowsPowerShellOverride('powershell.exe', 'linux')).toBeNull()
   })
 })

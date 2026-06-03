@@ -5,6 +5,7 @@ import {
   formatStartupError,
   killSidecar,
   mergeProxyEnv,
+  POWERSHELL_PATH_OVERRIDE_ENV,
   proxyUrlFromElectronProxyRules,
   pushStartupLog,
   reserveLocalPort,
@@ -12,8 +13,10 @@ import {
   SERVER_CONTROL_HOST,
   spawnSidecar,
   waitForServer,
+  windowsPowerShellOverride,
   type SidecarChild,
 } from './sidecarManager'
+import { readDesktopTerminalConfig, resolveDesktopTerminalShell } from './terminal'
 
 type ServerRuntimeOptions = {
   desktopRoot: string
@@ -157,17 +160,33 @@ export class ElectronServerRuntime {
   }
 
   private async resolveSidecarBaseEnvOnce(): Promise<NodeJS.ProcessEnv> {
-    if (!this.resolveSystemProxy) return process.env
+    if (!this.resolveSystemProxy) return this.applyPowerShellOverride(process.env)
 
     try {
       const rules = await this.resolveSystemProxy('https://auth.openai.com/')
-      return mergeProxyEnv(
+      return this.applyPowerShellOverride(mergeProxyEnv(
         process.env,
         proxyUrlFromElectronProxyRules(rules),
-      )
+      ))
     } catch (error) {
       console.error('[desktop] failed to resolve system proxy for sidecars', error)
-      return process.env
+      return this.applyPowerShellOverride(process.env)
     }
+  }
+
+  // On Windows, forward the user's chosen PowerShell to the agent sidecar so its
+  // PowerShellTool honors the same shell as the UI terminal (regression from the
+  // Tauri build, where this lived in src-tauri/src/lib.rs). Best-effort: never
+  // block sidecar startup, and never override an explicitly set env var.
+  private applyPowerShellOverride(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+    if (process.platform !== 'win32' || env[POWERSHELL_PATH_OVERRIDE_ENV]) return env
+    try {
+      const shell = resolveDesktopTerminalShell('win32', readDesktopTerminalConfig(env))
+      const override = windowsPowerShellOverride(shell, 'win32')
+      if (override) return { ...env, [POWERSHELL_PATH_OVERRIDE_ENV]: override }
+    } catch {
+      // Misconfigured custom shell etc. — fall through to the unmodified env.
+    }
+    return env
   }
 }
