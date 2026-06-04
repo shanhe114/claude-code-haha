@@ -2022,6 +2022,35 @@ describe('chatStore history mapping', () => {
     expect(updateSessionPermissionModeMock).toHaveBeenCalledWith('session-1', 'acceptEdits')
   })
 
+  it('mirrors CLI permission-mode broadcasts locally without echoing back to the server', () => {
+    sendMock.mockReset()
+    updateSessionPermissionModeMock.mockReset()
+
+    // CLI 退出 plan 后恢复到 bypassPermissions，回传 permission_mode_changed。
+    useChatStore.getState().handleServerMessage(TEST_SESSION_ID, {
+      type: 'permission_mode_changed',
+      mode: 'bypassPermissions',
+    })
+
+    // 本地镜像被校正……
+    expect(updateSessionPermissionModeMock).toHaveBeenCalledWith(TEST_SESSION_ID, 'bypassPermissions')
+    // ……但绝不能再 set_permission_mode 回发给 CLI，否则形成回环。
+    expect(sendMock).not.toHaveBeenCalled()
+  })
+
+  it('ignores permission-mode broadcasts for modes the selector cannot render', () => {
+    updateSessionPermissionModeMock.mockReset()
+
+    // 'auto' 不在桌面端 PermissionMode 内（仅在 CLI 启用对应特性时存在），
+    // 直接忽略，避免选择器拿到无法渲染的值。
+    useChatStore.getState().handleServerMessage(TEST_SESSION_ID, {
+      type: 'permission_mode_changed',
+      mode: 'auto' as never,
+    })
+
+    expect(updateSessionPermissionModeMock).not.toHaveBeenCalled()
+  })
+
   it('stores terminal task notifications for agent tool cards', () => {
     useChatStore.setState({
       sessions: {
